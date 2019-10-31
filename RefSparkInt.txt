@@ -1,0 +1,184 @@
+spark = SparkSession \
+    .builder \
+    .master("local[*]") \
+    .appName("Python Spark SQL basic example") \
+    .config("spark.some.config.option", "some-value") \
+    .enableHiveSupport() \
+    .getOrCreate()
+
+import org.apache.spark.sql.types._
+
+import org.apache.spark.sql._
+
+import org.apache.spark.SparkContext
+
+import spark.implicits._      /coverting RDD to Dataframs
+
+
+  SIMPLE POC RDD TO DATAFRAME
+  
+  val rdd=sc.textFile("/user/cloudera/kofi")
+
+case class person(name:String,age:Int,gender:String)
+
+val rdd2 = rdd.map(x=>x.split(","))
+
+val rdd5=rdd2.map(att=>person(att(0),att(1).toInt,att(2)))
+
+val rdd6 = rdd5.toDF
+
+rdd6.createTempView("new")
+
+ spark.sql("select * from new").show()
+ 
+ 
+          OR
+		  
+COVERTING rdd TO DATAFRAME USING STRUCTTYPE
+
+val schemastring="name,age"
+
+val field=schemastring.split(",").map(arr=>structField(arr,stringType,true))
+
+val schema= structType(field)
+
+val rdd=spark.sparkContext.textFile("/user/cloudera/people.txt")
+
+val rowrdd= rdd.map(line=>line.split(",")).map(arr=>Row(arr(0),arr(1)))
+
+val df= spark.createDataFrame(rowrdd,schema)
+ 
+ df.createTempView("person")
+
+  spaark.sql("select * from person")
+
+
+
+
+
+DENSE-RANK
+
+select country,unit_price,region,position from
+(select country,unit_price, dense_rank()partition by region over(order by unit_price desc) 
+as position from sale_record) as b where position=2;
+
+
+
+ DATAFRAME OPERATIONS
+ 
+ READ AS DATAFRAME
+ 
+ spark.read.csv('/user/cloudera/dir')
+ 
+              OR
+			
+spark.read.\
+format('csv').\
+option('inferschema',false).\
+option('header',true).\
+option('delimiter',",").\
+.load('/user/cloudera/dir')
+ 
+ SELECT
+ df.select($"name",$"age").show()
+
+FILTER
+df.filter($"age">21).show()
+
+COUNT
+df.groupBy($"age").count().show()
+
+ADD COLUMN
+df.withColumn("columnname",when($"column".isnotnull,$"columnname").otherwise(0)) 
+ 
+ RENAME COLUMN
+ df.withcolumnRename("newname",df.oldname)
+
+
+JOIN
+
+df1.join(df2,df1.id=df2.id,left) 
+
+Save
+
+df.write.mode(overwrite).format("csv").option("delimiter","|").save("/user/cloudera/dir") 
+
+SAVE TO RDBMS
+
+orders.write.\
+format('jdbc').\
+option('UI','jdbc:mysql://ms.worldpac.com')
+option('dbtable','shipping.table').\
+option('user','retail_user').\
+option('password','cloudera').\
+save(mode='append'/'overwrite')
+
+
+
+JDBC CONNECTION TO DATABASE
+
+spark.read.\
+format('jdbc').\
+option('UI','jdbc:mysql://ms.worldpac.com').\
+option('dbtable','shipping.table').\
+option('user','retail_user').\
+option('password','cloudera').\
+load()
+
+OR
+
+spark.read.\
+jdbc('dbc:mysql://ms.worldpac.com'/table.\
+properties={'user','retail_user','password','cloudera'})
+
+
+
+RDD to DATAFRAME
+ 
+ val rdd =sc.textFile("/user/cloudera/sales_records")
+ 
+ case class title(region:String,
+  country:String,
+  item_type:String,
+  sales_channel:String,
+  order_priority:String,
+  order_date:String,
+  order_id:String,
+  ship_date:String,
+  units_sold:String,
+  unit_price:String,
+  unit_cost:String,
+  total_revenue:String,
+  total_cost:String,
+  total_profit:String)
+  
+val rdd1=rdd.map(x=>x.split(",")).map(att=> title(att(0),att(1),att(2),att(3),att(4),att(5),att(6),att(7),att(8),att(9),att(10),att(11),att(12),att(13)))
+
+ val rdd5=rdd1.toDF
+ 
+ rdd5.createTempView("fin")
+ 
+ 
+  SIMPLE POC RDD TO DATAFRAME
+  
+  val rdd=sc.textFile("/user/cloudera/kofi")
+
+case class person(name:String,age:Int,gender:String)
+
+val rdd2 = rdd.map(x=>x.split(","))
+
+val rdd5=rdd2.map(att=>person(att(0),att(1).toInt,att(2)))
+
+val rdd6 = rdd5.toDF
+
+rdd6.createTempView("new")
+
+ spark.sql("select * from new").show()
+
+
+
+ 
+ 
+ 
+ 
+ 
