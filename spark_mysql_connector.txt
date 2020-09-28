@@ -1,0 +1,82 @@
+// using spark to connect to mysql database
+
+--First download mysql jdbc connector 
+1. download the Sql jdbc driver (https://dev.mysql.com/downloads/connector/j/5.1.html)
+2.create a directory to extract your jar file (NB: this location will be used in your in your config when intializing your spark session & also as part of your spark submit)
+3. extract the jar file using the (tar -xvzf file.jar)
+
+
+--Grant root access to  mysql(run below command) to allow application to read data
+1. grant all privileges on . to 'root'@'%' identified by 'cloudera' with grant option;
+2. flush privileges;
+
+
+//scala
+val connection = "jdbc:mysql://quickstart.cloudera/retail_db" // Connecting to the database
+val mysql_props = new java.util.Properties //providing mysql user credentials as properties
+mysql_props.setProperty("user", "retail_dba") //providing user name 
+mysql_props.setProperty("password","cloudera") //providing password
+
+val orders = sqlContext.read.jdbc(connection,"orders", mysql_props) //creating spark dataframe for orders table in mysql
+orders.registerTempTable("orders_1") //creating a table in spark for dataframe
+
+
+//pyspark  Approach 1
+
+from pyspark import SparkContext;
+from pyspark.sql import SparkSession;
+from pyspark.sql.types import *;
+
+
+spark = SparkSession.builder.master("local[*]") \
+       .config("spark.jars", "file:///home/cloudera/jars/mySQL/mysql-connector-java-5.1.49.jar")\
+       .appName("Read data from mySQL")\
+       .enableHiveSupport()\
+       .getOrCreate();
+
+
+spark.conf.set("spark.eventLog.enabled", "true")
+spark.sparkContext.setLogLevel('WARN')
+
+url_connection = "jdbc:mysql://192.168.231.134:3306"
+
+
+df = spark.read.format("jdbc").options(\
+     url= url_connection,\
+     driver = "com.mysql.jdbc.Driver", \
+     dbtable = "retail_db.products",\
+     user= "root", \
+     password= "cloudera") \
+     .load()
+
+df.show()
+
+---spark submit 
+
+spark2-submit --jars file:///home/cloudera/jars/mySQL/mysql-connector-java-5.1.49.jar readMysql.py
+
+
+//pyspark approach 2 
+from pyspark import SparkContext;
+from pyspark.sql import SparkSession;
+from pyspark.sql.types import *;
+
+
+spark = SparkSession.builder.master("local[*]") \
+       .config("spark.jars", "file:///home/cloudera/jars/mySQL/mysql-connector-java-5.1.49.jar")\
+       .appName("Read data from mySQL")\
+       .enableHiveSupport()\
+       .getOrCreate();
+
+
+spark.conf.set("spark.eventLog.enabled", "true")
+spark.sparkContext.setLogLevel('WARN')
+
+jdbcConnection = 'jdbc:mysql://quickstart.cloudera:3306/retail_db'
+property ={'user': 'root', 'password': 'cloudera', 'driver': 'com.mysql.jdbc.Driver'}
+
+
+df = spark.read.jdbc(url=jdbcConnection, table='orders', properties=property)
+
+df.show()
+

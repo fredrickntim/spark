@@ -1,0 +1,222 @@
+import pandas as pd
+from pyspark.sql import SparkSession
+from pyspark.context import SparkContext
+from pyspark.sql.functions 
+import *from pyspark.sql.types 
+import *from datetime import date, timedelta, datetime
+import time
+
+
+2. Initializing SparkSession
+First of all, a Spark session needs to be initialized. With the help of SparkSession, DataFrame can be created and registered as tables. Moreover, SQL tables be executed, tables can be cached, and parquet/json/csv/avro data formatted files can be read.
+sc = SparkSession.builder.appName("PysparkExample")\    
+.config ("spark.sql.shuffle.partitions", "50")\    .config("spark.driver.maxResultSize","5g")\    
+.config ("spark.sql.execution.arrow.enabled", "true")\    .getOrCreate()
+For detailed explanations for each parameter of SparkSession, kindly visit pyspark.sql.SparkSession.
+
+
+3. Creating Data Frames
+A DataFrame can be accepted as a distributed and tabulated collection of titled columns which is similar to a table in a relational database. In this post, we will be using DataFrame operations on PySpark API while working with datasets.
+You can download the Kaggle dataset from this link.
+
+3.1. From Spark Data Sources
+DataFrames can be created by reading txt, csv, json and parquet file formats. In our example, we will be using .json formatted file. You can also find and read text, csv and parquet file formats by using the related read functions as shown below.
+#Creates a spark data frame called as raw_data.
+#JSON
+dataframe = sc.read.json('dataset/nyt2.json')
+#TXT FILES# 
+dataframe_txt = sc.read.text('text_data.txt')
+#CSV FILES# 
+dataframe_csv = sc.read.csv('csv_data.csv')
+#PARQUET FILES# 
+dataframe_parquet = sc.read.load('parquet_data.parquet')
+
+
+4. Duplicate Values
+Duplicate values in a table can be eliminated by using dropDuplicates() function.
+dataframe = sc.read.json('dataset/nyt2.json') 
+dataframe.show(10)
+Image for post
+After dropDuplicates() function is applied, we can observe that duplicates are removed from dataset.
+dataframe_dropdup = dataframe.dropDuplicates() dataframe_dropdup.show(10)
+
+
+5. Queries
+Querying operations can be used for various purposes such as subsetting columns with “select”, adding conditions with “when” and filtering column contents with “like”. Below, some of the most commonly used operations are exemplified. For the complete list of query operations, see the Apache Spark doc.
+
+5.1. “Select” Operation
+It is possible to obtain columns by attribute (“author”) or by indexing (dataframe[‘author’]).
+#Show all entries in title column
+dataframe.select("author").show(10)
+#Show all entries in title, author, rank, price columns
+dataframe.select("author", "title", "rank", "price").show(10)
+Image for post
+First result table shows only “author” selection and second result table shows multiple columns
+
+5.2. “When” Operation
+In the first example, the “title” column is selected and a condition is added with a “when” condition.
+# Show title and assign 0 or 1 depending on title
+dataframe.select("title",when(dataframe.title != 'ODD HOURS', 
+1).otherwise(0)).show(10)
+Image for post
+Displaying 10 rows of specified conditions
+In the second example, “isin” operation is applied instead of “when” which can be also used to define some conditions to rows.
+# Show rows with specified authors if in the given options
+dataframe [dataframe.author.isin("John Sandford", 
+"Emily Giffin")].show(5)
+Image for post
+Result set displays 5 rows of specified criteria
+
+5.3. “Like” Operation
+In the brackets of “Like” function, % character is used to filter out all titles having “ THE ” word. If the condition we are looking for is the exact match, then no % character shall be used.
+# Show author and title is TRUE if title has " THE " word in titles
+dataframe.select("author", "title",
+dataframe.title.like("% THE %")).show(15)
+Image for post
+Result set of titles having “ THE “ word.
+
+5.4. “Startswith” — “ Endswith”
+StartsWith scans from the beginning of word/content with specified criteria in the brackets. In parallel, EndsWith processes the word/content starting from the end. Both of the functions are case sensitive.
+dataframe.select("author", "title", dataframe.title.startswith("THE")).show(5)
+dataframe.select("author", "title", dataframe.title.endswith("NT")).show(5)
+Image for post
+Result sets have 5 rows of startsWith and endsWith operations.
+
+5.5. “Substring” Operation
+Substring functions to extract the text between specified indexes. In the following examples, texts are extracted from the index numbers (1, 3), (3, 6) and (1, 6).
+dataframe.select(dataframe.author.substr(1, 3).alias("title")).show(5)
+dataframe.select(dataframe.author.substr(3, 6).alias("title")).show(5)
+dataframe.select(dataframe.author.substr(1, 6).alias("title")).show(5)
+Image for post
+Results are displayed respectively for substring (1,3), (3,6), (1,6).
+
+6. Add, Update & Remove Columns
+Data manipulation functions are also available in the DataFrame API. Below, you can find examples to add/update/remove column operations.
+
+6.1. Adding Columns
+# Lit() is required while we are creating columns with exact values.
+dataframe = dataframe.withColumn('new_column', 
+F.lit('This is a new column'))
+display(dataframe)
+Image for post
+New column is added at the end of the dataset
+
+6.2. Updating Columns
+For updated operations of DataFrame API, withColumnRenamed() function is used with two parameters.
+# Update column 'amazon_product_url' with 'URL'
+dataframe = dataframe.withColumnRenamed('amazon_product_url', 'URL')
+dataframe.show(5)
+Image for post
+‘Amazon_Product_URL’ column name is updated with ‘URL’
+
+6.3. Removing Columns
+Removal of a column can be achieved in two ways: adding the list of column names in the drop() function or specifying columns by pointing in the drop function. Both examples are shown below.
+dataframe_remove = dataframe.drop("publisher", "published_date").show(5)
+dataframe_remove2 = dataframe \ .drop(dataframe.publisher).drop(dataframe.published_date).show(5)
+Image for post
+“publisher” and “published_date” columns are removed in two different methods.
+
+7. Inspect Data
+There exist several types of functions to inspect data. Below, you can find some of the commonly used ones. For a deeper look, visit the Apache Spark doc.
+# Returns dataframe column names and data types
+dataframe.dtypes
+# Displays the content of dataframe
+dataframe.show()
+# Return first n rows
+dataframe.head()
+# Returns first row
+dataframe.first()
+# Return first n rows
+dataframe.take(5)
+# Computes summary statistics
+dataframe.describe().show()
+# Returns columns of dataframe
+dataframe.columns
+# Counts the number of rows in dataframe
+dataframe.count()
+# Counts the number of distinct rows in dataframe
+dataframe.distinct().count()
+# Prints plans including physical and logical
+dataframe.explain(4)
+
+8. “GroupBy” Operation
+The grouping process is applied with GroupBy() function by adding column name in function.
+# Group by author, count the books of the authors in the groups
+dataframe.groupBy("author").count().show(10)
+Image for post
+Authors are grouped by the number books published
+
+9. “Filter” Operation
+Filtering is applied by using filter() function with a condition parameter added inside of it. This function is case sensitive.
+# Filtering entries of title
+# Only keeps records having value 'THE HOST'
+dataframe.filter(dataframe["title"] == 'THE HOST').show(5)
+Image for post
+Title column is filtered with the content only having “THE HOST” and displaying 5 results.
+
+10. Missing & Replacing Values
+For every dataset, there is always a need for replacing, existing values, dropping unnecessary columns and filling missing values in data preprocessing stages. pyspark.sql.DataFrameNaFunction library helps us to manipulate data with this respect. Some examples are added below.
+# Replacing null values
+dataframe.na.fill()
+dataFrame.fillna()
+dataFrameNaFunctions.fill()
+# Returning new dataframe restricting rows with null valuesdataframe.na.drop()
+dataFrame.dropna()
+dataFrameNaFunctions.drop()
+# Return new dataframe replacing one value with another
+dataframe.na.replace(5, 15)
+dataFrame.replace()
+dataFrameNaFunctions.replace()
+
+11. Repartitioning
+It is possible to increase or decrease the existing level of partitioning in RDD Increasing can be actualized by using repartition(self, numPartitions) function which results in a new RDD that obtains same /higher number of partitions. Decreasing can be processed with coalesce(self, numPartitions, shuffle=False) function that results in new RDD with a reduced number of partitions to a specified number. For more info, please visit the Apache Spark docs.
+# Dataframe with 10 partitions
+dataframe.repartition(10).rdd.getNumPartitions()
+# Dataframe with 1 partition
+dataframe.coalesce(1).rdd.getNumPartitions()
+
+12. Running SQL Queries Programmatically
+Raw SQL queries can also be used by enabling the “sql” operation on our SparkSession to run SQL queries programmatically and return the result sets as DataFrame structures. For more detailed information, kindly visit Apache Spark docs.
+# Registering a table
+dataframe.registerTempTable("df")
+sc.sql("select * from df").show(3)
+sc.sql("select \               
+CASE WHEN description LIKE '%love%' THEN 'Love_Theme' \               WHEN description LIKE '%hate%' THEN 'Hate_Theme' \               WHEN description LIKE '%happy%' THEN 'Happiness_Theme' \               WHEN description LIKE '%anger%' THEN 'Anger_Theme' \               WHEN description LIKE '%horror%' THEN 'Horror_Theme' \               WHEN description LIKE '%death%' THEN 'Criminal_Theme' \               WHEN description LIKE '%detective%' THEN 'Mystery_Theme' \               ELSE 'Other_Themes' \               END Themes \       
+from df").groupBy('Themes').count().show()
+
+13. Output
+
+13.1. Data Structures
+DataFrame API uses RDD as a base and it converts SQL queries into low-level RDD functions. By using .rdd operation, a dataframe can be converted into RDD. It is also possible to convert Spark Dataframe into a string of RDD and Pandas formats.
+# Converting dataframe into an RDD
+rdd_convert = dataframe.rdd
+# Converting dataframe into a RDD of string dataframe.toJSON().first()
+# Obtaining contents of df as Pandas 
+dataFramedataframe.toPandas()
+Image for post
+Results of different data structures
+
+13.2. Write & Save to Files
+Any data source type that is loaded to our code as data frames can easily be converted and saved into other types including .parquet and .json. For more save, load, write function details, please visit Apache Spark doc.
+# Write & Save File in .parquet format
+dataframe.select("author", "title", "rank", "description") \
+.write \
+.save("Rankings_Descriptions.parquet")
+Image for post
+Parquet file is created when .write .save() functions are processed.
+# Write & Save File in .json format
+dataframe.select("author", "title") \
+.write \
+.save("Authors_Titles.json",format="json")
+Image for post
+JSON file is created when .write .save() functions are processed.
+
+13.3. Stopping SparkSession
+Spark Session can be stopped by running stop() function as follows.
+# End Spark Session
+sc.stop()
+The code and Jupyter Notebook is available on my GitHub.
+Questions and comments are highly appreciated!
+References:
+http://spark.apache.org/docs/latest/
+https://docs.anaconda.com/anaconda/
